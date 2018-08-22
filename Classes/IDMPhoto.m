@@ -10,15 +10,16 @@
 #import "IDMPhotoBrowser.h"
 #import "FLAnimatedImageView+WebCache.h"
 #import "NSData+ImageContentType.h"
+#import "UIImage+MultiFormat.h"
 
 // Private
 @interface IDMPhoto () {
     // Image Sources
     NSString *_photoPath;
-
+    
     // Image
     UIImage *_underlyingImage;
-
+    
     // Other
     NSString *_caption;
     BOOL _loadingInProgress;
@@ -36,22 +37,22 @@
 @implementation IDMPhoto
 
 // Properties
-@synthesize underlyingImage = _underlyingImage, 
+@synthesize underlyingImage = _underlyingImage,
 photoURL = _photoURL,
 caption = _caption;
 
 #pragma mark Class Methods
 
 + (IDMPhoto *)photoWithImage:(UIImage *)image {
-	return [[IDMPhoto alloc] initWithImage:image];
+    return [[IDMPhoto alloc] initWithImage:image];
 }
 
 + (IDMPhoto *)photoWithFilePath:(NSString *)path {
-	return [[IDMPhoto alloc] initWithFilePath:path];
+    return [[IDMPhoto alloc] initWithFilePath:path];
 }
 
 + (IDMPhoto *)photoWithURL:(NSURL *)url {
-	return [[IDMPhoto alloc] initWithURL:url];
+    return [[IDMPhoto alloc] initWithURL:url];
 }
 
 + (NSArray *)photosWithImages:(NSArray *)imagesArray {
@@ -100,24 +101,24 @@ caption = _caption;
 #pragma mark NSObject
 
 - (id)initWithImage:(UIImage *)image {
-	if ((self = [super init])) {
-		self.underlyingImage = image;
-	}
-	return self;
+    if ((self = [super init])) {
+        self.underlyingImage = image;
+    }
+    return self;
 }
 
 - (id)initWithFilePath:(NSString *)path {
-	if ((self = [super init])) {
-		_photoPath = [path copy];
-	}
-	return self;
+    if ((self = [super init])) {
+        _photoPath = [path copy];
+    }
+    return self;
 }
 
 - (id)initWithURL:(NSURL *)url {
-	if ((self = [super init])) {
-		_photoURL = [url copy];
-	}
-	return self;
+    if ((self = [super init])) {
+        _photoURL = [url copy];
+    }
+    return self;
 }
 
 #pragma mark IDMPhoto Protocol Methods
@@ -138,39 +139,37 @@ caption = _caption;
             [self performSelectorInBackground:@selector(loadImageFromFileAsync) withObject:nil];
         } else if (_photoURL) {
             // Load async from web (using SDWebImageManager)
-			
-			[[SDWebImageManager sharedManager] loadImageWithURL:_photoURL options:SDWebImageRetryFailed progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
-				CGFloat progress = ((CGFloat)receivedSize)/((CGFloat)expectedSize);
+            
+            [[SDWebImageManager sharedManager] loadImageWithURL:_photoURL options:SDWebImageRetryFailed progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
+                CGFloat progress = ((CGFloat)receivedSize)/((CGFloat)expectedSize);
                 dispatch_async(dispatch_get_main_queue(), ^{
                     if (self.progressUpdateBlock) {
                         self.progressUpdateBlock(progress);
                     }
                 });
-			} completed:^(UIImage * _Nullable image, NSData * _Nullable data, NSError * _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL * _Nullable imageURL) {
-                FLAnimatedImage *associatedAnimatedImage = image.sd_FLAnimatedImage;
-                if (associatedAnimatedImage) {
-                    // Asscociated animated image exist
-                } else if ([NSData sd_imageFormatForImageData:data] == SDImageFormatGIF) {
-                    // Firstly set the static poster image to avoid flashing
-                    UIImage *posterImage = image.images ? image.images.firstObject : image;
-                    image = posterImage;
-                    // Secondly create FLAnimatedImage in global queue because it's time consuming, then set it back
-                    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
-                        FLAnimatedImage *animatedImage = [FLAnimatedImage animatedImageWithGIFData:data];
-                        if (animatedImage) {
-                            dispatch_async(dispatch_get_main_queue(), ^{
-                                image.sd_FLAnimatedImage = animatedImage;
-                                self.underlyingImage = image;
-                                [self performSelectorOnMainThread:@selector(imageLoadingComplete) withObject:nil waitUntilDone:NO];
-                            });
-                        }
-                    });
+            } completed:^(UIImage * _Nullable image, NSData * _Nullable data, NSError * _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL * _Nullable imageURL) {
+                // Step 1. Check memory cache (associate object)
+                FLAnimatedImage *animatedImage = image.sd_FLAnimatedImage;
+                if (!animatedImage) {
+                    // Step 2. Check if original compressed image data is "GIF"
+                    BOOL isGIF = (image.sd_imageFormat == SDImageFormatGIF || [NSData sd_imageFormatForImageData:data] == SDImageFormatGIF);
+                    // Step 3. Check if data exist or query disk cache
+                    if (isGIF && !data) {
+                        NSString *key = [[SDWebImageManager sharedManager] cacheKeyForURL:_photoURL];
+                        data = [[SDImageCache sharedImageCache] diskImageDataForKey:key];
+                    }
+                    // Step 4. Create FLAnimatedImage
+                    animatedImage = [FLAnimatedImage animatedImageWithGIFData:data];
                 }
-				if (image) {
-					self.underlyingImage = image;
-				}
-				[self performSelectorOnMainThread:@selector(imageLoadingComplete) withObject:nil waitUntilDone:NO];
-			}];
+                // Step 5. Set animatedImage or normal image
+                if (animatedImage) {
+                    image.sd_FLAnimatedImage = animatedImage;
+                }
+                if (image) {
+                    self.underlyingImage = image;
+                }
+                [self performSelectorOnMainThread:@selector(imageLoadingComplete) withObject:nil waitUntilDone:NO];
+            }];
         } else {
             // Failed - no source
             self.underlyingImage = nil;
@@ -182,45 +181,45 @@ caption = _caption;
 // Release if we can get it again from path or url
 - (void)unloadUnderlyingImage {
     _loadingInProgress = NO;
-
-	if (self.underlyingImage && (_photoPath || _photoURL)) {
-		self.underlyingImage = nil;
-	}
+    
+    if (self.underlyingImage && (_photoPath || _photoURL)) {
+        self.underlyingImage = nil;
+    }
 }
 
 #pragma mark - Async Loading
 
 /*- (UIImage *)decodedImageWithImage:(UIImage *)image {
-    CGImageRef imageRef = image.CGImage;
-    // System only supports RGB, set explicitly and prevent context error
-    // if the downloaded image is not the supported format
-    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-    
-    CGContextRef context = CGBitmapContextCreate(NULL,
-                                                 CGImageGetWidth(imageRef),
-                                                 CGImageGetHeight(imageRef),
-                                                 8,
-                                                 // width * 4 will be enough because are in ARGB format, don't read from the image
-                                                 CGImageGetWidth(imageRef) * 4,
-                                                 colorSpace,
-                                                 // kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little
-                                                 // makes system don't need to do extra conversion when displayed.
-                                                 kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
-    CGColorSpaceRelease(colorSpace);
-    
-    if ( ! context) {
-        return nil;
-    }
-    
-    CGRect rect = (CGRect){CGPointZero, CGImageGetWidth(imageRef), CGImageGetHeight(imageRef)};
-    CGContextDrawImage(context, rect, imageRef);
-    CGImageRef decompressedImageRef = CGBitmapContextCreateImage(context);
-    CGContextRelease(context);
-    
-    UIImage *decompressedImage = [[UIImage alloc] initWithCGImage:decompressedImageRef];
-    CGImageRelease(decompressedImageRef);
-    return decompressedImage;
-}*/
+ CGImageRef imageRef = image.CGImage;
+ // System only supports RGB, set explicitly and prevent context error
+ // if the downloaded image is not the supported format
+ CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+ 
+ CGContextRef context = CGBitmapContextCreate(NULL,
+ CGImageGetWidth(imageRef),
+ CGImageGetHeight(imageRef),
+ 8,
+ // width * 4 will be enough because are in ARGB format, don't read from the image
+ CGImageGetWidth(imageRef) * 4,
+ colorSpace,
+ // kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little
+ // makes system don't need to do extra conversion when displayed.
+ kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+ CGColorSpaceRelease(colorSpace);
+ 
+ if ( ! context) {
+ return nil;
+ }
+ 
+ CGRect rect = (CGRect){CGPointZero, CGImageGetWidth(imageRef), CGImageGetHeight(imageRef)};
+ CGContextDrawImage(context, rect, imageRef);
+ CGImageRef decompressedImageRef = CGBitmapContextCreateImage(context);
+ CGContextRelease(context);
+ 
+ UIImage *decompressedImage = [[UIImage alloc] initWithCGImage:decompressedImageRef];
+ CGImageRelease(decompressedImageRef);
+ return decompressedImage;
+ }*/
 
 - (UIImage *)decodedImageWithImage:(UIImage *)image {
     if (image.images) {
@@ -270,12 +269,12 @@ caption = _caption;
     
     // If failed, return undecompressed image
     if (!context) return image;
-	
+    
     CGContextDrawImage(context, imageRect, imageRef);
     CGImageRef decompressedImageRef = CGBitmapContextCreateImage(context);
-	
+    
     CGContextRelease(context);
-	
+    
     UIImage *decompressedImage = [UIImage imageWithCGImage:decompressedImageRef scale:image.scale orientation:image.imageOrientation];
     CGImageRelease(decompressedImageRef);
     return decompressedImage;
