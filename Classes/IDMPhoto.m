@@ -8,6 +8,8 @@
 
 #import "IDMPhoto.h"
 #import "IDMPhotoBrowser.h"
+#import "FLAnimatedImageView+WebCache.h"
+#import "NSData+ImageContentType.h"
 
 // Private
 @interface IDMPhoto () {
@@ -139,15 +141,34 @@ caption = _caption;
 			
 			[[SDWebImageManager sharedManager] loadImageWithURL:_photoURL options:SDWebImageRetryFailed progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
 				CGFloat progress = ((CGFloat)receivedSize)/((CGFloat)expectedSize);
-				
-				if (self.progressUpdateBlock) {
-					self.progressUpdateBlock(progress);
-				}
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    if (self.progressUpdateBlock) {
+                        self.progressUpdateBlock(progress);
+                    }
+                });
 			} completed:^(UIImage * _Nullable image, NSData * _Nullable data, NSError * _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL * _Nullable imageURL) {
+                FLAnimatedImage *associatedAnimatedImage = image.sd_FLAnimatedImage;
+                if (associatedAnimatedImage) {
+                    // Asscociated animated image exist
+                } else if ([NSData sd_imageFormatForImageData:data] == SDImageFormatGIF) {
+                    // Firstly set the static poster image to avoid flashing
+                    UIImage *posterImage = image.images ? image.images.firstObject : image;
+                    image = posterImage;
+                    // Secondly create FLAnimatedImage in global queue because it's time consuming, then set it back
+                    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
+                        FLAnimatedImage *animatedImage = [FLAnimatedImage animatedImageWithGIFData:data];
+                        if (animatedImage) {
+                            dispatch_async(dispatch_get_main_queue(), ^{
+                                image.sd_FLAnimatedImage = animatedImage;
+                                self.underlyingImage = image;
+                                [self performSelectorOnMainThread:@selector(imageLoadingComplete) withObject:nil waitUntilDone:NO];
+                            });
+                        }
+                    });
+                }
 				if (image) {
 					self.underlyingImage = image;
 				}
-				
 				[self performSelectorOnMainThread:@selector(imageLoadingComplete) withObject:nil waitUntilDone:NO];
 			}];
         } else {

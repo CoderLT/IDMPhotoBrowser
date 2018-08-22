@@ -9,6 +9,8 @@
 #import "IDMZoomingScrollView.h"
 #import "IDMPhotoBrowser.h"
 #import "IDMPhoto.h"
+#import "FLAnimatedImageView+WebCache.h"
+#import "NSData+ImageContentType.h"
 
 // Declare private methods of browser
 @interface IDMPhotoBrowser ()
@@ -126,11 +128,18 @@
 		UIImage *img = [self.photoBrowser imageForPhoto:_photo];
 		if (img) {
             // Hide ProgressView
-            //_progressView.alpha = 0.0f;
-            [_progressView removeFromSuperview];
+            if (_photo.underlyingImage) {
+                //_progressView.alpha = 0.0f;
+                [_progressView removeFromSuperview];
+            }
             
             // Set image
-			_photoImageView.image = img;
+            if (img.sd_FLAnimatedImage) {
+                _photoImageView.animatedImage = img.sd_FLAnimatedImage;
+            }
+            else {
+                _photoImageView.image = img;
+            }
 			_photoImageView.hidden = NO;
             
             // Setup photo frame
@@ -190,7 +199,7 @@
     // Calculate Min
     CGFloat xScale = boundsSize.width / imageSize.width;    // the scale needed to perfectly fit the image width-wise
     CGFloat yScale = boundsSize.height / imageSize.height;  // the scale needed to perfectly fit the image height-wise
-    CGFloat minScale = MIN(xScale, yScale);                 // use minimum of these to allow the image to become fully visible
+    CGFloat minScale = xScale;                 // use minimum of these to allow the image to become fully visible
     
 	// If image is smaller than the screen then ensure we show it at
 	// min scale of 1
@@ -199,28 +208,28 @@
 	}
     
 	// Calculate Max
-	CGFloat maxScale = 4.0; // Allow double scale
+	CGFloat maxScale = 4.0 * minScale; // Allow double scale
     // on high resolution screens we have double the pixel density, so we will be seeing every pixel if we limit the
     // maximum zoom scale to 0.5.
-	if ([UIScreen instancesRespondToSelector:@selector(scale)]) {
-		maxScale = maxScale / [[UIScreen mainScreen] scale];
-		
-		if (maxScale < minScale) {
-			maxScale = minScale * 2;
-		}
-	}
+//    if ([UIScreen instancesRespondToSelector:@selector(scale)]) {
+//        maxScale = maxScale / [[UIScreen mainScreen] scale];
+//
+//        if (maxScale < minScale) {
+//            maxScale = minScale * 2;
+//        }
+//    }
 
 	// Calculate Max Scale Of Double Tap
 	CGFloat maxDoubleTapZoomScale = 4.0 * minScale; // Allow double scale
     // on high resolution screens we have double the pixel density, so we will be seeing every pixel if we limit the
     // maximum zoom scale to 0.5.
-	if ([UIScreen instancesRespondToSelector:@selector(scale)]) {
-        maxDoubleTapZoomScale = maxDoubleTapZoomScale / [[UIScreen mainScreen] scale];
-        
-        if (maxDoubleTapZoomScale < minScale) {
-            maxDoubleTapZoomScale = minScale * 2;
-        }
-    }
+//    if ([UIScreen instancesRespondToSelector:@selector(scale)]) {
+//        maxDoubleTapZoomScale = maxDoubleTapZoomScale / [[UIScreen mainScreen] scale];
+//
+//        if (maxDoubleTapZoomScale < minScale) {
+//            maxDoubleTapZoomScale = minScale * 2;
+//        }
+//    }
     
     // Make sure maxDoubleTapZoomScale isn't larger than maxScale
     maxDoubleTapZoomScale = MIN(maxDoubleTapZoomScale, maxScale);
@@ -228,7 +237,7 @@
 	// Set
 	self.maximumZoomScale = maxScale;
 	self.minimumZoomScale = minScale;
-	self.zoomScale = minScale;
+	self.zoomScale = xScale;
 	self.maximumDoubleTapZoomScale = maxDoubleTapZoomScale;
     
 	// Reset position
@@ -304,7 +313,7 @@
 	[NSObject cancelPreviousPerformRequestsWithTarget:_photoBrowser];
 	
 	// Zoom
-	if (self.zoomScale == self.maximumDoubleTapZoomScale) {
+	if ((self.zoomScale - self.maximumDoubleTapZoomScale) >= -0.01) {
 		
 		// Zoom out
 		[self setZoomScale:self.minimumZoomScale animated:YES];
