@@ -26,6 +26,8 @@
 - (void)photoBrowser:(IDMPhotoBrowser *)photoBrowser didDismissActionSheetWithButtonIndex:(NSUInteger)buttonIndex photoIndex:(NSUInteger)photoIndex;
 - (IDMCaptionView *)photoBrowser:(IDMPhotoBrowser *)photoBrowser captionViewForPhotoAtIndex:(NSUInteger)index;
 - (void)photoBrowser:(IDMPhotoBrowser *)photoBrowser imageFailed:(NSUInteger)index imageView:(IDMTapDetectingImageView *)imageView;
+- (void)photoBrowser:(IDMPhotoBrowser *)photoBrowser didSavePhotoAtIndex:(NSUInteger)index;
+- (void)photoBrowser:(IDMPhotoBrowser *)photoBrowser didDelPhotoAtIndex:(NSUInteger)index;
 @end
 
 // IDMPhotoBrowser
@@ -35,22 +37,13 @@
 @property (nonatomic, strong) id <IDMPhotoBrowserDelegate> delegate;
 
 // Toolbar customization
-@property (nonatomic) BOOL displayToolbar;
 @property (nonatomic) BOOL displayCounterLabel;
-@property (nonatomic) BOOL displayArrowButton;
-@property (nonatomic) BOOL displayActionButton;
-@property (nonatomic, strong) NSArray *actionButtonTitles;
-@property (nonatomic, weak) UIImage *leftArrowImage, *leftArrowSelectedImage;
-@property (nonatomic, weak) UIImage *rightArrowImage, *rightArrowSelectedImage;
-@property (nonatomic, weak) UIImage *actionButtonImage, *actionButtonSelectedImage;
+@property (nonatomic) BOOL displayDelButton;
+@property (nonatomic) BOOL displaySaveButton;
 
 // View customization
-@property (nonatomic) BOOL displayDoneButton;
 @property (nonatomic) BOOL useWhiteBackgroundColor;
-@property (nonatomic, weak) UIImage *doneButtonImage;
 @property (nonatomic, weak) UIColor *trackTintColor, *progressTintColor;
-@property (nonatomic, assign) CGFloat doneButtonRightInset, doneButtonTopInset;
-@property (nonatomic, assign) CGSize doneButtonSize;
 
 @property (nonatomic, weak) UIImage *scaleImage;
 

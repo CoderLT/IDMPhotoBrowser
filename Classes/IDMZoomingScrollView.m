@@ -11,6 +11,7 @@
 #import "IDMPhoto.h"
 #import "FLAnimatedImageView+WebCache.h"
 #import "NSData+ImageContentType.h"
+#import <AVKit/AVKit.h>
 
 // Declare private methods of browser
 @interface IDMPhotoBrowser ()
@@ -26,6 +27,7 @@
 @property (nonatomic, weak) IDMPhotoBrowser *photoBrowser;
 - (void)handleSingleTap:(CGPoint)touchPoint;
 - (void)handleDoubleTap:(CGPoint)touchPoint;
+@property (nonatomic, strong) UIButton *playButton;
 @end
 
 @implementation IDMZoomingScrollView
@@ -98,6 +100,8 @@
         _photo = photo;
     }
     [self displayImage];
+    self.playButton.hidden = !((IDMPhoto *)photo).videoURL;
+    [self addSubview:self.playButton];
 }
 
 - (void)prepareForReuse {
@@ -235,13 +239,22 @@
     maxDoubleTapZoomScale = MIN(maxDoubleTapZoomScale, maxScale);
     
 	// Set
-	self.maximumZoomScale = maxScale;
-	self.minimumZoomScale = minScale;
-	self.zoomScale = xScale;
+    self.maximumZoomScale = maxScale;
+    self.minimumZoomScale = minScale;
+    self.zoomScale = xScale;
 	self.maximumDoubleTapZoomScale = maxDoubleTapZoomScale;
     
 	// Reset position
 	_photoImageView.frame = CGRectMake(0, 0, _photoImageView.frame.size.width, _photoImageView.frame.size.height);
+    if (((IDMPhoto *)self.photo).videoURL) {
+        self.zoomScale = 1;
+        self.maximumZoomScale = 1;
+        self.minimumZoomScale = 1;
+        self.maximumDoubleTapZoomScale = 1;
+        self.contentOffset = CGPointZero;
+        _photoImageView.frame = self.bounds;
+        self.contentSize = self.bounds.size;
+    }
 	[self setNeedsLayout];    
 }
 
@@ -280,7 +293,7 @@
 #pragma mark - UIScrollViewDelegate
 
 - (UIView *)viewForZoomingInScrollView:(UIScrollView *)scrollView {
-	return _photoImageView;
+    return ((IDMPhoto *)self.photo).videoURL ? nil : _photoImageView;
 }
 
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
@@ -301,7 +314,17 @@
 }
 
 #pragma mark - Tap Detection
-
+- (void)didClickPlay:(id)sender {
+    AVPlayer *avPlayer= [AVPlayer playerWithURL:((IDMPhoto *)self.photo).videoURL];
+    AVPlayerViewController *playerViewController = [[AVPlayerViewController alloc] init];
+    playerViewController.player = avPlayer;
+    playerViewController.videoGravity = AVLayerVideoGravityResizeAspect;
+    playerViewController.showsPlaybackControls = YES;
+    playerViewController.entersFullScreenWhenPlaybackBegins = YES;
+    playerViewController.allowsPictureInPicturePlayback = NO;
+    [playerViewController.player play];
+    [_photoBrowser presentViewController:playerViewController animated:NO completion:nil];
+}
 - (void)handleSingleTap:(CGPoint)touchPoint {
 //	[_photoBrowser performSelector:@selector(toggleControls) withObject:nil afterDelay:0.2];
 	[_photoBrowser performSelector:@selector(handleSingleTap) withObject:nil afterDelay:0.2];
@@ -348,4 +371,16 @@
     [self handleDoubleTap:[touch locationInView:view]];
 }
 
+- (UIButton *)playButton {
+    if (!_playButton) {
+        _playButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        _playButton.adjustsImageWhenHighlighted = NO;
+        [_playButton setImage:[UIImage imageNamed:@"IDMPhotoBrowser.bundle/images/IDMPhotoBrowser_play@2x.png"] forState:UIControlStateNormal];
+        [_playButton setImage:[UIImage imageNamed:@"IDMPhotoBrowser.bundle/images/IDMPhotoBrowser_play@2x.png"] forState:UIControlStateHighlighted];
+        [_playButton addTarget:self action:@selector(didClickPlay:) forControlEvents:UIControlEventTouchUpInside];
+        [_playButton sizeToFit];
+        _playButton.center = self.center;
+    }
+    return _playButton;
+}
 @end
