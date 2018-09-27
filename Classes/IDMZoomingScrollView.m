@@ -254,6 +254,7 @@
         self.contentOffset = CGPointZero;
         _photoImageView.frame = self.bounds;
         self.contentSize = self.bounds.size;
+        self.playButton.center = _photoImageView.center;
     }
 	[self setNeedsLayout];    
 }
@@ -320,7 +321,9 @@
     playerViewController.player = avPlayer;
     playerViewController.videoGravity = AVLayerVideoGravityResizeAspect;
     playerViewController.showsPlaybackControls = YES;
-    playerViewController.entersFullScreenWhenPlaybackBegins = YES;
+    if ([playerViewController respondsToSelector:@selector(setEntersFullScreenWhenPlaybackBegins:)]) {
+        playerViewController.entersFullScreenWhenPlaybackBegins = YES;
+    }
     playerViewController.allowsPictureInPicturePlayback = NO;
     [playerViewController.player play];
     [_photoBrowser presentViewController:playerViewController animated:NO completion:nil];
@@ -379,7 +382,6 @@
         [_playButton setImage:[UIImage imageNamed:@"IDMPhotoBrowser.bundle/images/IDMPhotoBrowser_play@2x.png"] forState:UIControlStateHighlighted];
         [_playButton addTarget:self action:@selector(didClickPlay:) forControlEvents:UIControlEventTouchUpInside];
         [_playButton sizeToFit];
-        _playButton.center = self.center;
     }
     return _playButton;
 }
