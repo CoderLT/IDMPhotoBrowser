@@ -252,9 +252,9 @@
         self.minimumZoomScale = 1;
         self.maximumDoubleTapZoomScale = 1;
         self.contentOffset = CGPointZero;
-        _photoImageView.frame = self.bounds;
+        _photoImageView.frame = CGRectMake(0, 0, self.bounds.size.width, _photoImageView.frame.size.height * self.bounds.size.width / _photoImageView.frame.size.width);
         self.contentSize = self.bounds.size;
-        self.playButton.center = _photoImageView.center;
+        self.playButton.center = CGPointMake(self.bounds.size.width/2, self.bounds.size.height/2);
     }
 	[self setNeedsLayout];    
 }

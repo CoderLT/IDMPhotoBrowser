@@ -1111,7 +1111,9 @@ NSLocalizedStringFromTableInBundle((key), nil, [NSBundle bundleWithPath:[[NSBund
 //    } else {
 //        _counterLabel.text = nil;
 //    }
-
+    
+    IDMPhoto *photo = [self photoAtIndex:_currentPageIndex];
+    _saveButton.hidden = !self.displaySaveButton || photo.videoURL;
 	// Buttons
 //    _previousButton.enabled = (_currentPageIndex > 0);
 //    _nextButton.enabled = (_currentPageIndex < [self numberOfPhotos]-1);
