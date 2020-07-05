@@ -7,11 +7,11 @@
 //
 
 #import <Foundation/Foundation.h>
-#import <FLAnimatedImage/FLAnimatedImage.h>
+#import <SDWebImage/SDAnimatedImageView+WebCache.h>
 
 @protocol IDMTapDetectingImageViewDelegate;
 
-@interface IDMTapDetectingImageView : FLAnimatedImageView {
+@interface IDMTapDetectingImageView : SDAnimatedImageView {
 	id <IDMTapDetectingImageViewDelegate> __weak tapDelegate;
 }
 @property (nonatomic, weak) id <IDMTapDetectingImageViewDelegate> tapDelegate;

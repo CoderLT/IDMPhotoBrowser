@@ -8,7 +8,6 @@
 
 #import "IDMPhoto.h"
 #import "IDMPhotoBrowser.h"
-#import "FLAnimatedImageView+WebCache.h"
 #import "NSData+ImageContentType.h"
 #import "UIImage+MultiFormat.h"
 
@@ -148,23 +147,6 @@ caption = _caption;
                     }
                 });
             } completed:^(UIImage * _Nullable image, NSData * _Nullable data, NSError * _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL * _Nullable imageURL) {
-                // Step 1. Check memory cache (associate object)
-                FLAnimatedImage *animatedImage = image.sd_FLAnimatedImage;
-                if (!animatedImage) {
-                    // Step 2. Check if original compressed image data is "GIF"
-                    BOOL isGIF = (image.sd_imageFormat == SDImageFormatGIF || [NSData sd_imageFormatForImageData:data] == SDImageFormatGIF);
-                    // Step 3. Check if data exist or query disk cache
-                    if (isGIF && !data) {
-                        NSString *key = [[SDWebImageManager sharedManager] cacheKeyForURL:_photoURL];
-                        data = [[SDImageCache sharedImageCache] diskImageDataForKey:key];
-                    }
-                    // Step 4. Create FLAnimatedImage
-                    animatedImage = [FLAnimatedImage animatedImageWithGIFData:data];
-                }
-                // Step 5. Set animatedImage or normal image
-                if (animatedImage) {
-                    image.sd_FLAnimatedImage = animatedImage;
-                }
                 if (image) {
                     self.underlyingImage = image;
                 }

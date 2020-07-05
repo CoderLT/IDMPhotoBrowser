@@ -9,7 +9,6 @@
 #import "IDMZoomingScrollView.h"
 #import "IDMPhotoBrowser.h"
 #import "IDMPhoto.h"
-#import "FLAnimatedImageView+WebCache.h"
 #import "NSData+ImageContentType.h"
 #import <AVKit/AVKit.h>
 
@@ -138,12 +137,7 @@
             }
             
             // Set image
-            if (img.sd_FLAnimatedImage) {
-                _photoImageView.animatedImage = img.sd_FLAnimatedImage;
-            }
-            else {
-                _photoImageView.image = img;
-            }
+            _photoImageView.image = img;
 			_photoImageView.hidden = NO;
             
             // Setup photo frame
